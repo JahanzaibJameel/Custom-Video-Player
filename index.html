@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Premium Video Player</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes slideInRight {
+            from {
+                transform: translateX(20px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .video-container:hover .controls-container {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .progress-bar:hover .progress-hover {
+            height: 10px;
+        }
+
+        .tooltip {
+            visibility: hidden;
+            opacity: 0;
+            transition: all 0.2s ease;
+        }
+
+        .control-btn:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+            transform: translateY(-5px);
+        }
+
+        .volume-slider {
+            transition: width 0.3s ease, opacity 0.2s;
+            width: 0;
+            opacity: 0;
+        }
+
+        .volume-container:hover .volume-slider {
+            width: 100px;
+            opacity: 1;
+        }
+
+        .playlist-item:hover {
+            transform: translateX(5px);
+        }
+
+        .playlist-item.active {
+            border-left: 3px solid #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .thumbnail-overlay {
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, transparent 50%);
+        }
+
+        .glow {
+            box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+        }
+    </style>
+</head>
+
+<body class="bg-gray-900 text-gray-100 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <h1
+            class="text-3xl font-bold mb-2 text-center bg-gradient-to-r from-blue-400 to-purple-500 bg-clip-text text-transparent">
+            Premium Video Player</h1>
+        <p class="text-gray-400 text-center mb-8">Watch your favorite videos in high quality</p>
+
+        <div class="flex flex-col lg:flex-row gap-8">
+            <!-- Main Video Player -->
+            <div class="lg:w-3/4">
+                <div class="video-container relative rounded-2xl overflow-hidden shadow-2xl bg-black animate-fadeIn">
+                    <video id="video" class="w-full aspect-video"
+                        poster="https://images.unsplash.com/photo-1574717024453-3545e7cc3e1a?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80">
+                        Your browser does not support the video tag.
+                    </video>
+
+                    <!-- Loading Spinner -->
+                    <div id="loadingSpinner" class="absolute inset-0 flex items-center justify-center hidden">
+                        <div class="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin">
+                        </div>
+                    </div>
+
+                    <!-- Big Play Button (Center) -->
+                    <button id="bigPlayBtn"
+                        class="absolute inset-0 m-auto w-20 h-20 bg-black/50 rounded-full flex items-center justify-center transition-all duration-300 hover:bg-black/70 hover:scale-105 backdrop-blur-sm">
+                        <i class="fas fa-play text-2xl text-white"></i>
+                    </button>
+
+                    <!-- Video Title Overlay -->
+                    <div class="absolute top-4 left-4 right-4 flex justify-between items-start">
+                        <div class="bg-black/70 rounded-lg px-3 py-2 max-w-[80%]">
+                            <h2 id="videoTitle" class="text-lg font-semibold truncate">Video Title</h2>
+                            <p id="videoAuthor" class="text-sm text-gray-300">Author Name</p>
+                        </div>
+                        <button id="theaterBtn" class="bg-black/70 rounded-lg p-2 hover:bg-black/90 transition">
+                            <i class="fas fa-expand text-sm"></i>
+                        </button>
+                    </div>
+
+                    <!-- Controls Container -->
+                    <div
+                        class="controls-container absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 via-black/70 to-transparent p-4 transition-all duration-300 opacity-0 transform translate-y-5">
+                        <!-- Progress Bar -->
+                        <div class="progress-bar mb-3 h-2 bg-gray-700 rounded-full cursor-pointer relative group">
+                            <div class="progress-buffered absolute top-0 left-0 h-full bg-gray-600 rounded-full"></div>
+                            <div class="progress-played absolute top-0 left-0 h-full bg-blue-500 rounded-full"></div>
+                            <div
+                                class="progress-hover absolute top-0 left-0 h-1 bg-gray-400/50 rounded-full group-hover:h-2 transition-all">
+                            </div>
+                            <div
+                                class="progress-thumb absolute top-1/2 w-3 h-3 bg-blue-500 rounded-full -translate-y-1/2 transform transition-all opacity-0 group-hover:opacity-100">
+                            </div>
+                            <div id="timeTooltip"
+                                class="absolute bottom-full mb-2 px-2 py-1 bg-gray-800 text-xs rounded pointer-events-none hidden transform -translate-x-1/2">
+                            </div>
+                        </div>
+
+                        <!-- Controls -->
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-4">
+                                <!-- Play/Pause -->
+                                <button id="playPauseBtn" class="control-btn relative group">
+                                    <i id="playIcon" class="fas fa-play text-lg"></i>
+                                    <i id="pauseIcon" class="fas fa-pause text-lg hidden"></i>
+                                    <span
+                                        class="tooltip absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs py-1 px-2 rounded whitespace-nowrap">Play/Pause
+                                        (k)</span>
+                                </button>
+
+                                <!-- Volume -->
+                                <div class="volume-container flex items-center space-x-2">
+                                    <button id="muteBtn" class="control-btn relative group">
+                                        <i id="volumeHighIcon" class="fas fa-volume-up text-lg"></i>
+                                        <i id="volumeLowIcon" class="fas fa-volume-down text-lg hidden"></i>
+                                        <i id="volumeMutedIcon" class="fas fa-volume-mute text-lg hidden"></i>
+                                        <span
+                                            class="tooltip absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs py-1 px-2 rounded whitespace-nowrap">Mute
+                                            (m)</span>
+                                    </button>
+                                    <input id="volumeSlider" type="range" min="0" max="1" step="0.01" value="1"
+                                        class="volume-slider h-1 bg-gray-600 rounded-full appearance-none cursor-pointer">
+                                </div>
+
+                                <!-- Time Display -->
+                                <div class="text-sm font-mono flex items-center space-x-1">
+                                    <span id="currentTime">0:00</span>
+                                    <span>/</span>
+                                    <span id="duration">0:00</span>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center space-x-4">
+                                <!-- Playback Speed -->
+                                <div class="relative group">
+                                    <button id="speedBtn"
+                                        class="control-btn px-3 py-1 text-sm rounded-md hover:bg-gray-700/50 transition flex items-center space-x-1">
+                                        <span>1x</span>
+                                        <i class="fas fa-chevron-down text-xs"></i>
+                                    </button>
+                                    <div id="speedOptions"
+                                        class="absolute bottom-full mb-2 right-0 bg-gray-800 rounded-md shadow-lg py-1 hidden w-32 z-10">
+                                        <button data-speed="0.5"
+                                            class="speed-option block w-full text-left px-4 py-2 text-sm hover:bg-gray-700 transition flex justify-between items-center">
+                                            <span>0.5x</span>
+                                            <i class="fas fa-check text-blue-500 hidden"></i>
+                                        </button>
+                                        <button data-speed="0.75"
+                                            class="speed-option block w-full text-left px-4 py-2 text-sm hover:bg-gray-700 transition flex justify-between items-center">
+                                            <span>0.75x</span>
+                                            <i class="fas fa-check text-blue-500 hidden"></i>
+                                        </button>
+                                        <button data-speed="1"
+                                            class="speed-option block w-full text-left px-4 py-2 text-sm hover:bg-gray-700 transition flex justify-between items-center">
+                                            <span>1x</span>
+                                            <i class="fas fa-check text-blue-500"></i>
+                                        </button>
+                                        <button data-speed="1.25"
+                                            class="speed-option block w-full text-left px-4 py-2 text-sm hover:bg-gray-700 transition flex justify-between items-center">
+                                            <span>1.25x</span>
+                                            <i class="fas fa-check text-blue-500 hidden"></i>
+                                        </button>
+                                        <button data-speed="1.5"
+                                            class="speed-option block w-full text-left px-4 py-2 text-sm hover:bg-gray-700 transition flex justify-between items-center">
+                                            <span>1.5x</span>
+                                            <i class="fas fa-check text-blue-500 hidden"></i>
+                                        </button>
+                                        <button data-speed="2"
+                                            class="speed-option block w-full text-left px-4 py-2 text-sm hover:bg-gray-700 transition flex justify-between items-center">
+                                            <span>2x</span>
+                                            <i class="fas fa-check text-blue-500 hidden"></i>
+                                        </button>
+                                    </div>
+                                    <span
+                                        class="tooltip absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs py-1 px-2 rounded whitespace-nowrap">Playback
+                                        Speed</span>
+                                </div>
+
+                                <!-- Fullscreen -->
+                                <button id="fullscreenBtn" class="control-btn relative group">
+                                    <i id="fullscreenOpenIcon" class="fas fa-expand text-lg"></i>
+                                    <i id="fullscreenCloseIcon" class="fas fa-compress text-lg hidden"></i>
+                                    <span
+                                        class="tooltip absolute bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-gray-800 text-white text-xs py-1 px-2 rounded whitespace-nowrap">Fullscreen
+                                        (f)</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Video Info Section -->
+                <div class="mt-4 bg-gray-800/50 rounded-xl p-4 backdrop-blur-sm">
+                    <div class="flex justify-between items-start mb-3">
+                        <div>
+                            <h2 id="mainVideoTitle" class="text-xl font-bold">Big Buck Bunny</h2>
+                            <p id="mainVideoViews" class="text-gray-400 text-sm">1.2M views • 2 days ago</p>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button
+                                class="flex items-center space-x-1 bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded-full transition">
+                                <i class="far fa-thumbs-up"></i>
+                                <span>12K</span>
+                            </button>
+                            <button
+                                class="flex items-center space-x-1 bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded-full transition">
+                                <i class="far fa-thumbs-down"></i>
+                                <span>42</span>
+                            </button>
+                            <button
+                                class="flex items-center space-x-1 bg-gray-700 hover:bg-gray-600 px-3 py-1 rounded-full transition">
+                                <i class="fas fa-share"></i>
+                                <span>Share</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex items-start space-x-3 mt-3 pt-3 border-t border-gray-700">
+                        <img src="https://randomuser.me/api/portraits/men/32.jpg" alt="Channel"
+                            class="w-10 h-10 rounded-full">
+                        <div class="flex-1">
+                            <h3 class="font-semibold">Blender Foundation</h3>
+                            <p class="text-gray-400 text-sm">1.8M subscribers</p>
+                            <p id="videoDescription" class="mt-2 text-sm line-clamp-3">Big Buck Bunny tells the story of
+                                a giant rabbit with a heart bigger than himself. When one sunny day three rodents rudely
+                                harass him, something snaps... and the rabbit ain't no bunny anymore! In the typical
+                                cartoon tradition he prepares the nasty rodents a comical revenge.</p>
+                            <button id="showMoreBtn" class="text-blue-400 text-sm mt-1 hover:underline">Show
+                                more</button>
+                        </div>
+                        <button
+                            class="bg-red-500 hover:bg-red-600 px-4 py-1 rounded-full text-sm font-medium transition">Subscribe</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Playlist Section -->
+            <div class="lg:w-1/4">
+                <div class="bg-gray-800/50 rounded-xl p-4 backdrop-blur-sm">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-semibold text-lg">Up Next</h3>
+                        <div class="flex items-center space-x-2">
+                            <span class="text-sm text-gray-400">Autoplay</span>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" value="" class="sr-only peer" checked>
+                                <div
+                                    class="w-9 h-5 bg-gray-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500">
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3" id="playlist">
+                        <!-- Playlist items will be added here by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // Video Data
+            const videos = [
+                {
+                    id: 1,
+                    title: "Big Buck Bunny",
+                    author: "Blender Foundation",
+                    views: "1.2M views",
+                    posted: "2 days ago",
+                    description: "Big Buck Bunny tells the story of a giant rabbit with a heart bigger than himself. When one sunny day three rodents rudely harass him, something snaps... and the rabbit ain't no bunny anymore! In the typical cartoon tradition he prepares the nasty rodents a comical revenge.",
+                    duration: 596,
+                    thumbnail: "https://images.unsplash.com/photo-1574717024453-3545e7cc3e1a?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80",
+                    src: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+                    likes: "12K",
+                    dislikes: "42",
+                    subscribers: "1.8M subscribers"
+                },
+                {
+                    id: 2,
+                    title: "Elephant Dream",
+                    author: "Blender Foundation",
+                    views: "856K views",
+                    posted: "1 week ago",
+                    description: "The first Blender Open Movie from 2006. Made by Blender Foundation | orange.blender.org",
+                    duration: 653,
+                    thumbnail: "https://images.unsplash.com/photo-1543946207-39bf91ebe70f?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80",
+                    src: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+                    likes: "8.5K",
+                    dislikes: "23",
+                    subscribers: "1.8M subscribers"
+                },
+                {
+                    id: 3,
+                    title: "Sintel",
+                    author: "Blender Foundation",
+                    views: "2.1M views",
+                    posted: "3 weeks ago",
+                    description: "Sintel is an independently produced short film, initiated by the Blender Foundation as a means to further improve and validate the free/open source 3D creation suite Blender.",
+                    duration: 888,
+                    thumbnail: "https://images.unsplash.com/photo-1518709766631-a6a7f45921c3?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80",
+                    src: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/Sintel.mp4",
+                    likes: "24K",
+                    dislikes: "156",
+                    subscribers: "1.8M subscribers"
+                },
+                {
+                    id: 4,
+                    title: "Tears of Steel",
+                    author: "Blender Foundation",
+                    views: "3.5M views",
+                    posted: "1 month ago",
+                    description: "Tears of Steel was realized with crowd-funding by users of the open source 3D creation tool Blender. Target was to improve and test a complete open and free pipeline for visual effects in film.",
+                    duration: 734,
+                    thumbnail: "https://images.unsplash.com/photo-1506748686214-e9df14d4d9d0?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80",
+                    src: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4",
+                    likes: "32K",
+                    dislikes: "210",
+                    subscribers: "1.8M subscribers"
+                },
+                {
+                    id: 5,
+                    title: "Nature Documentary",
+                    author: "Wildlife Films",
+                    views: "5.7M views",
+                    posted: "2 months ago",
+                    description: "Beautiful scenes from nature showing wildlife in their natural habitat. Filmed over 3 years across 12 countries.",
+                    duration: 1203,
+                    thumbnail: "https://images.unsplash.com/photo-1470114716159-e389f8712fda?ixlib=rb-1.2.1&auto=format&fit=crop&w=1350&q=80",
+                    src: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+                    likes: "58K",
+                    dislikes: "342",
+                    subscribers: "3.2M subscribers"
+                }
+            ];
+
+            // Current video index
+            let currentVideoIndex = 0;
+
+            // Video Elements
+            const video = document.getElementById('video');
+            const videoContainer = document.querySelector('.video-container');
+
+            // Control Buttons
+            const playPauseBtn = document.getElementById('playPauseBtn');
+            const bigPlayBtn = document.getElementById('bigPlayBtn');
+            const muteBtn = document.getElementById('muteBtn');
+            const volumeSlider = document.getElementById('volumeSlider');
+            const speedBtn = document.getElementById('speedBtn');
+            const speedOptions = document.getElementById('speedOptions');
+            const fullscreenBtn = document.getElementById('fullscreenBtn');
+            const theaterBtn = document.getElementById('theaterBtn');
+
+            // Progress Elements
+            const progressPlayed = document.querySelector('.progress-played');
+            const progressBuffered = document.querySelector('.progress-buffered');
+            const progressThumb = document.querySelector('.progress-thumb');
+            const progressHover = document.querySelector('.progress-hover');
+            const progressBar = document.querySelector('.progress-bar');
+            const timeTooltip = document.getElementById('timeTooltip');
+
+            // Time Display
+            const currentTimeDisplay = document.getElementById('currentTime');
+            const durationDisplay = document.getElementById('duration');
+
+            // Video Info Elements
+            const videoTitle = document.getElementById('videoTitle');
+            const videoAuthor = document.getElementById('videoAuthor');
+            const mainVideoTitle = document.getElementById('mainVideoTitle');
+            const mainVideoViews = document.getElementById('mainVideoViews');
+            const videoDescription = document.getElementById('videoDescription');
+            const showMoreBtn = document.getElementById('showMoreBtn');
+
+            // Icons
+            const playIcon = document.getElementById('playIcon');
+            const pauseIcon = document.getElementById('pauseIcon');
+            const volumeHighIcon = document.getElementById('volumeHighIcon');
+            const volumeLowIcon = document.getElementById('volumeLowIcon');
+            const volumeMutedIcon = document.getElementById('volumeMutedIcon');
+            const fullscreenOpenIcon = document.getElementById('fullscreenOpenIcon');
+            const fullscreenCloseIcon = document.getElementById('fullscreenCloseIcon');
+
+            // Loading Spinner
+            const loadingSpinner = document.getElementById('loadingSpinner');
+
+            // Playlist
+            const playlistElement = document.getElementById('playlist');
+
+            // Volume Control
+            let lastVolume = 1;
+            let isTheaterMode = false;
+
+            // Initialize the player
+            function initPlayer() {
+                loadVideo(currentVideoIndex);
+                renderPlaylist();
+
+                // Set up event listeners
+                setupEventListeners();
+            }
+
+            // Load a video by index
+            function loadVideo(index) {
+                const videoData = videos[index];
+
+                // Set video source
+                video.src = videoData.src;
+                video.poster = videoData.thumbnail;
+
+                // Update UI
+                videoTitle.textContent = videoData.title;
+                videoAuthor.textContent = videoData.author;
+                mainVideoTitle.textContent = videoData.title;
+                mainVideoViews.textContent = `${videoData.views} • ${videoData.posted}`;
+                videoDescription.textContent = videoData.description;
+
+                // Highlight current video in playlist
+                updatePlaylistHighlight(index);
+
+                // Load the video
+                video.load();
+            }
+
+            // Render playlist
+            function renderPlaylist() {
+                playlistElement.innerHTML = '';
+
+                videos.forEach((videoData, index) => {
+                    const videoItem = document.createElement('div');
+                    videoItem.className = `playlist-item flex cursor-pointer rounded-lg overflow-hidden transition ${index === currentVideoIndex ? 'active glow' : 'hover:bg-gray-700/50'}`;
+                    videoItem.innerHTML = `
+                        <div class="relative w-1/3 flex-shrink-0">
+                            <img src="${videoData.thumbnail}" alt="${videoData.title}" class="w-full h-full object-cover aspect-video">
+                            <div class="absolute bottom-1 right-1 bg-black/80 text-white text-xs px-1 rounded">
+                                ${formatTime(videoData.duration)}
+                            </div>
+                            ${index === currentVideoIndex ? '<div class="absolute inset-0 bg-blue-500/20 flex items-center justify-center"><i class="fas fa-play text-white text-xl"></i></div>' : ''}
+                        </div>
+                        <div class="p-2 w-2/3">
+                            <h4 class="font-medium text-sm line-clamp-2">${videoData.title}</h4>
+                            <p class="text-gray-400 text-xs mt-1">${videoData.author}</p>
+                            <p class="text-gray-400 text-xs">${videoData.views} • ${videoData.posted}</p>
+                        </div>
+                    `;
+
+                    videoItem.addEventListener('click', () => {
+                        currentVideoIndex = index;
+                        loadVideo(currentVideoIndex);
+                        video.play();
+                    });
+
+                    playlistElement.appendChild(videoItem);
+                });
+            }
+
+            // Update playlist highlight
+            function updatePlaylistHighlight(index) {
+                const items = document.querySelectorAll('.playlist-item');
+                items.forEach((item, i) => {
+                    if (i === index) {
+                        item.classList.add('active', 'glow');
+                        item.classList.remove('hover:bg-gray-700/50');
+                    } else {
+                        item.classList.remove('active', 'glow');
+                        item.classList.add('hover:bg-gray-700/50');
+                    }
+                });
+            }
+
+            // Play/Pause Functionality
+            function togglePlay() {
+                if (video.paused) {
+                    video.play();
+                    playIcon.classList.add('hidden');
+                    pauseIcon.classList.remove('hidden');
+                    bigPlayBtn.classList.add('hidden');
+                } else {
+                    video.pause();
+                    playIcon.classList.remove('hidden');
+                    pauseIcon.classList.add('hidden');
+                }
+            }
+
+            // Format time (seconds to MM:SS)
+            function formatTime(seconds) {
+                const minutes = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
+            }
+
+            // Update volume icons
+            function updateVolumeIcons(volume) {
+                if (volume > 0.5) {
+                    volumeHighIcon.classList.remove('hidden');
+                    volumeLowIcon.classList.add('hidden');
+                    volumeMutedIcon.classList.add('hidden');
+                } else if (volume > 0) {
+                    volumeHighIcon.classList.add('hidden');
+                    volumeLowIcon.classList.remove('hidden');
+                    volumeMutedIcon.classList.add('hidden');
+                } else {
+                    volumeHighIcon.classList.add('hidden');
+                    volumeLowIcon.classList.add('hidden');
+                    volumeMutedIcon.classList.remove('hidden');
+                }
+            }
+
+            // Setup event listeners
+            function setupEventListeners() {
+                // Play/Pause
+                playPauseBtn.addEventListener('click', togglePlay);
+                bigPlayBtn.addEventListener('click', () => {
+                    togglePlay();
+                    bigPlayBtn.classList.add('hidden');
+                });
+
+                video.addEventListener('click', togglePlay);
+                video.addEventListener('play', () => {
+                    playIcon.classList.add('hidden');
+                    pauseIcon.classList.remove('hidden');
+                    bigPlayBtn.classList.add('hidden');
+                });
+
+                video.addEventListener('pause', () => {
+                    playIcon.classList.remove('hidden');
+                    pauseIcon.classList.add('hidden');
+                    if (!video.seeking) {
+                        bigPlayBtn.classList.remove('hidden');
+                    }
+                });
+
+                // Mute/Volume
+                muteBtn.addEventListener('click', () => {
+                    if (video.volume > 0) {
+                        lastVolume = video.volume;
+                        video.volume = 0;
+                        volumeSlider.value = 0;
+                        updateVolumeIcons(0);
+                    } else {
+                        video.volume = lastVolume;
+                        volumeSlider.value = lastVolume;
+                        updateVolumeIcons(lastVolume);
+                    }
+                });
+
+                volumeSlider.addEventListener('input', () => {
+                    video.volume = volumeSlider.value;
+                    updateVolumeIcons(video.volume);
+                });
+
+                // Time Display
+                video.addEventListener('timeupdate', () => {
+                    currentTimeDisplay.textContent = formatTime(video.currentTime);
+                    const percent = (video.currentTime / video.duration) * 100;
+                    progressPlayed.style.width = `${percent}%`;
+                    progressThumb.style.left = `${percent}%`;
+                });
+
+                video.addEventListener('durationchange', () => {
+                    durationDisplay.textContent = formatTime(video.duration);
+                });
+
+                // Progress Bar
+                progressBar.addEventListener('click', (e) => {
+                    const rect = progressBar.getBoundingClientRect();
+                    const pos = (e.clientX - rect.left) / rect.width;
+                    video.currentTime = pos * video.duration;
+                });
+
+                progressBar.addEventListener('mousemove', (e) => {
+                    const rect = progressBar.getBoundingClientRect();
+                    const pos = (e.clientX - rect.left) / rect.width;
+                    const hoverTime = pos * video.duration;
+
+                    progressHover.style.width = `${pos * 100}%`;
+
+                    // Show time tooltip
+                    timeTooltip.textContent = formatTime(hoverTime);
+                    timeTooltip.style.left = `${pos * 100}%`;
+                    timeTooltip.classList.remove('hidden');
+                });
+
+                progressBar.addEventListener('mouseleave', () => {
+                    timeTooltip.classList.add('hidden');
+                });
+
+                // Buffered Progress
+                video.addEventListener('progress', () => {
+                    if (video.buffered.length > 0) {
+                        const bufferedEnd = video.buffered.end(video.buffered.length - 1);
+                        const percent = (bufferedEnd / video.duration) * 100;
+                        progressBuffered.style.width = `${percent}%`;
+                    }
+                });
+
+                // Playback Speed
+                speedBtn.addEventListener('click', () => {
+                    speedOptions.classList.toggle('hidden');
+                });
+
+                document.querySelectorAll('.speed-option').forEach(option => {
+                    option.addEventListener('click', () => {
+                        const speed = parseFloat(option.dataset.speed);
+                        video.playbackRate = speed;
+                        speedBtn.querySelector('span').textContent = `${speed}x`;
+
+                        // Update active state
+                        document.querySelectorAll('.speed-option i').forEach(icon => {
+                            icon.classList.add('hidden');
+                        });
+                        option.querySelector('i').classList.remove('hidden');
+
+                        speedOptions.classList.add('hidden');
+                    });
+                });
+
+                // Close speed options when clicking outside
+                document.addEventListener('click', (e) => {
+                    if (!speedBtn.contains(e.target) && !speedOptions.contains(e.target)) {
+                        speedOptions.classList.add('hidden');
+                    }
+                });
+
+                // Fullscreen
+                fullscreenBtn.addEventListener('click', () => {
+                    if (!document.fullscreenElement) {
+                        videoContainer.requestFullscreen().catch(err => {
+                            console.error(`Error attempting to enable fullscreen: ${err.message}`);
+                        });
+                    } else {
+                        document.exitFullscreen();
+                    }
+                });
+
+                document.addEventListener('fullscreenchange', () => {
+                    if (document.fullscreenElement) {
+                        fullscreenOpenIcon.classList.add('hidden');
+                        fullscreenCloseIcon.classList.remove('hidden');
+                    } else {
+                        fullscreenOpenIcon.classList.remove('hidden');
+                        fullscreenCloseIcon.classList.add('hidden');
+                    }
+                });
+
+                // Theater Mode
+                theaterBtn.addEventListener('click', () => {
+                    isTheaterMode = !isTheaterMode;
+                    document.documentElement.classList.toggle('theater-mode');
+
+                    if (isTheaterMode) {
+                        theaterBtn.innerHTML = '<i class="fas fa-compress text-sm"></i>';
+                    } else {
+                        theaterBtn.innerHTML = '<i class="fas fa-expand text-sm"></i>';
+                    }
+                });
+
+                // Loading State
+                video.addEventListener('waiting', () => {
+                    loadingSpinner.classList.remove('hidden');
+                });
+
+                video.addEventListener('playing', () => {
+                    loadingSpinner.classList.add('hidden');
+                });
+
+                // Video Ended - Play next
+                video.addEventListener('ended', () => {
+                    if (currentVideoIndex < videos.length - 1) {
+                        currentVideoIndex++;
+                        loadVideo(currentVideoIndex);
+                        video.play();
+                    }
+                });
+
+                // Show More Description
+                let isDescriptionExpanded = false;
+                showMoreBtn.addEventListener('click', () => {
+                    isDescriptionExpanded = !isDescriptionExpanded;
+                    if (isDescriptionExpanded) {
+                        videoDescription.classList.remove('line-clamp-3');
+                        showMoreBtn.textContent = 'Show less';
+                    } else {
+                        videoDescription.classList.add('line-clamp-3');
+                        showMoreBtn.textContent = 'Show more';
+                    }
+                });
+
+                // Keyboard Shortcuts
+                document.addEventListener('keydown', (e) => {
+                    if (e.target.tagName === 'INPUT') return;
+
+                    switch (e.key.toLowerCase()) {
+                        case ' ':
+                        case 'k':
+                            e.preventDefault();
+                            togglePlay();
+                            break;
+                        case 'm':
+                            e.preventDefault();
+                            muteBtn.click();
+                            break;
+                        case 'f':
+                            e.preventDefault();
+                            fullscreenBtn.click();
+                            break;
+                        case 't':
+                            e.preventDefault();
+                            theaterBtn.click();
+                            break;
+                        case 'arrowleft':
+                        case 'j':
+                            e.preventDefault();
+                            video.currentTime = Math.max(0, video.currentTime - 5);
+                            break;
+                        case 'arrowright':
+                        case 'l':
+                            e.preventDefault();
+                            video.currentTime = Math.min(video.duration, video.currentTime + 5);
+                            break;
+                        case 'arrowup':
+                            e.preventDefault();
+                            video.volume = Math.min(1, video.volume + 0.1);
+                            volumeSlider.value = video.volume;
+                            updateVolumeIcons(video.volume);
+                            break;
+                        case 'arrowdown':
+                            e.preventDefault();
+                            video.volume = Math.max(0, video.volume - 0.1);
+                            volumeSlider.value = video.volume;
+                            updateVolumeIcons(video.volume);
+                            break;
+                        case '>':
+                        case '.':
+                            e.preventDefault();
+                            if (video.currentTime + 0.04 < video.duration) {
+                                video.currentTime += 0.04;
+                            }
+                            break;
+                        case '<':
+                        case ',':
+                            e.preventDefault();
+                            video.currentTime = Math.max(0, video.currentTime - 0.04);
+                            break;
+                        case 'n':
+                            e.preventDefault();
+                            if (currentVideoIndex < videos.length - 1) {
+                                currentVideoIndex++;
+                                loadVideo(currentVideoIndex);
+                                video.play();
+                            }
+                            break;
+                        case 'p':
+                            e.preventDefault();
+                            if (currentVideoIndex > 0) {
+                                currentVideoIndex--;
+                                loadVideo(currentVideoIndex);
+                                video.play();
+                            }
+                            break;
+                    }
+                });
+
+                // Show controls on mouse move
+                let controlsTimeout;
+                videoContainer.addEventListener('mousemove', () => {
+                    document.querySelector('.controls-container').style.opacity = '1';
+                    document.querySelector('.controls-container').style.transform = 'translateY(0)';
+
+                    clearTimeout(controlsTimeout);
+                    controlsTimeout = setTimeout(() => {
+                        if (!video.paused) {
+                            document.querySelector('.controls-container').style.opacity = '0';
+                            document.querySelector('.controls-container').style.transform = 'translateY(5px)';
+                        }
+                    }, 3000);
+                });
+
+                // Hide big play button when seeking
+                video.addEventListener('seeking', () => {
+                    bigPlayBtn.classList.add('hidden');
+                });
+
+                // Initialize volume icons
+                updateVolumeIcons(video.volume);
+            }
+
+            // Initialize the player
+            initPlayer();
+        });
+    </script>
+</body>
+
+</html>
